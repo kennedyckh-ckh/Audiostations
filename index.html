@@ -71,75 +71,97 @@
     ];
 
     const grid = document.getElementById("stations-grid");
+    let active;
+
+    function play(player, status, files, k = 0) {
+      if (active) {
+        active.m.pause();
+        active.m.remove();
+        active.status.textContent = "";
+      }
+      if (k >= files.length) {
+        status.textContent = "Media could not be loaded. Check the filename and folder.";
+        return;
+      }
+      const isVideo = /\.(mp4|mov|webm)$/i.test(files[k]);
+      const m = document.createElement(isVideo ? "video" : "audio");
+      m.controls = true;
+      m.setAttribute("playsinline", "");
+      m.src = files[k];
+      active = { m, status };
+      player.replaceChildren(m);
+
+      m.addEventListener("error", () => {
+        if (active && active.m === m) play(player, status, files, k + 1);
+      }, { once: true });
+
+      m.play().catch(e => {
+        if (active && active.m === m && e.name === "NotAllowedError") {
+          status.textContent = "Tap Play in the media controls to start.";
+        }
+      });
+    }
+
     STATIONS.forEach((title, idx) => {
       const n = idx + 1;
       const padded = String(n).padStart(2, "0");
-      const slideNum = n + 1; // Slide2.jpg for Station 1 up to Slide17.jpg for Station 16
-      const loading = n <= 2 ? "eager" : "lazy";
+      const slideNum = n + 1;
 
       const article = document.createElement("article");
       article.id = `station-${n}`;
-      article.dataset.station = String(n);
-      article.innerHTML = `
-        <img src="Slide${slideNum}.jpg" alt="${title} banner" loading="${loading}">
-        <div class="body">
-          <h3><span class="station-num">${padded}</span> ${title}</h3>
-          <div class="actions">
-            <button type="button" aria-label="Play ${title} audio">Audio</button>
-            <button type="button" aria-label="Play ${title} video">Video</button>
-            <a href="protocol${n}.pdf" type="application/pdf" target="_blank" rel="noopener">Protocol PDF</a>
-          </div>
-          <div class="player"></div>
-          <div class="status" role="status"></div>
-        </div>
-      `;
+
+      const img = document.createElement("img");
+      img.alt = `${title} banner`;
+      img.loading = n <= 2 ? "eager" : "lazy";
+      img.src = `Slide${slideNum}.JPG`;
+
+      const body = document.createElement("div");
+      body.className = "body";
+
+      const h3 = document.createElement("h3");
+      const numSpan = document.createElement("span");
+      numSpan.className = "station-num";
+      numSpan.textContent = padded;
+      h3.append(numSpan, " ", title);
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const player = document.createElement("div");
+      player.className = "player";
+
+      const status = document.createElement("div");
+      status.className = "status";
+      status.setAttribute("role", "status");
+
+      const audioBtn = document.createElement("button");
+      audioBtn.type = "button";
+      audioBtn.setAttribute("aria-label", `Play ${title} audio`);
+      audioBtn.textContent = "Audio";
+      audioBtn.onclick = () => play(player, status, [`audio${n}.MP3`, `audio${n}.mp3`]);
+
+      const videoBtn = document.createElement("button");
+      videoBtn.type = "button";
+      videoBtn.setAttribute("aria-label", `Play ${title} video`);
+      videoBtn.textContent = "Video";
+      videoBtn.onclick = () => {
+        const list = [`Video${n}.MP4`, `Video${n}.mp4`];
+        if (n === 16) list.push("Video16.MP3", "Video16.mp3");
+        play(player, status, list);
+      };
+
+      const pdfLink = document.createElement("a");
+      pdfLink.href = `protocol${n}.pdf`;
+      pdfLink.type = "application/pdf";
+      pdfLink.target = "_blank";
+      pdfLink.rel = "noopener";
+      pdfLink.textContent = "Protocol PDF";
+
+      actions.append(audioBtn, videoBtn, pdfLink);
+      body.append(h3, actions, player, status);
+      article.append(img, body);
       grid.appendChild(article);
     });
-
-    let active;
-    for (const card of document.querySelectorAll("article")) {
-      const i = card.dataset.station;
-      const player = card.querySelector(".player");
-      const status = card.querySelector(".status");
-
-      function play(files, k = 0) {
-        if (active) {
-          active.m.pause();
-          active.m.remove();
-          active.status.textContent = "";
-        }
-        const isVideo = /\.(mp4|mov|webm)$/i.test(files[k]);
-        const m = document.createElement(isVideo ? "video" : "audio");
-        m.controls = true;
-        m.setAttribute("playsinline", "");
-        m.src = files[k];
-        active = { m, status };
-        player.replaceChildren(m);
-
-        m.addEventListener("error", () => {
-          if (active.m !== m) return;
-          if (k + 1 < files.length) {
-            play(files, k + 1);
-          } else {
-            status.textContent = "Media could not be loaded. Check the filename and folder.";
-          }
-        }, { once: true });
-
-        m.play().catch(e => {
-          if (active.m === m && e.name === "NotAllowedError") {
-            status.textContent = "Tap Play in the media controls to start.";
-          }
-        });
-      }
-
-      const [a, v] = card.querySelectorAll("button");
-      a.onclick = () => play([`audio${i}.MP3`, `audio${i}.mp3`]);
-      v.onclick = () => {
-        const list = [`Video${i}.MP4`, `Video${i}.mp4`];
-        if (i === "16") list.push("Video16.MP3", "Video16.mp3");
-        play(list);
-      };
-    }
   </script>
 </body>
 </html>
